@@ -3,6 +3,8 @@ package com.example.model;
 
 import java.sql.Date;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -15,6 +17,8 @@ public class UserModel {
     private int age;
     private double height;
     private double weight;
+    @CreationTimestamp
+    @Column(updatable = false)
     private Date createdAt;
     public Date getCreatedAt() {
         return createdAt;
