@@ -12,3 +12,4 @@ EXPOSE 10000
 
 
 CMD ["java", "-jar", "app.jar"]
+#we are here
