@@ -18,11 +18,20 @@ public class NutriTrackApplication {
         SpringApplication.run(NutriTrackApplication.class, args);
     }
 
-    @Bean
-    public CommandLineRunner testOllama() {
-        return args -> {
-            String response = OllamaClient.askModel("What is 2+2? Respond only with a number.");
-            System.out.println("Ollama response: " + response);
-        };
+   @Bean
+public CommandLineRunner testOllama() {
+    return args -> {
+        // Run in a separate thread so it doesn't block startup
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(5000); // Wait for app to fully start
+                String response = OllamaClient.askModel("What is 2+2? Respond only with a number.");
+                System.out.println("Ollama response: " + response);
+            } catch (Exception e) {
+                System.err.println("Ollama test failed: " + e.getMessage());
+            }
+        });
+    };
+}
     }
 }
