@@ -2,84 +2,124 @@ package com.example.NutriTrack.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.OutputStream;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class OllamaClient {
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    
+    private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+    private static String getApiKeyFromEnv() {
+        try {
+            Path envPath = Paths.get(".env");
+            Map<String, String> envVars = new HashMap<>();
+            Files.lines(envPath).forEach(line -> {
+                if (line.contains("=")) {
+                    String[] parts = line.split("=", 2);
+                    envVars.put(parts[0].trim(), parts[1].trim());
+                }
+            });
+            return envVars.get("GROQ_API_KEY");
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     public static String askModel(String prompt) {
         try {
-            URL url = new URL("http://localhost:11434/api/generate");
+            String apiKey = getApiKeyFromEnv();
+            if (apiKey == null || apiKey.isEmpty()) {
+                return "{\"error\": \"❌ GROQ_API_KEY missing or .env file not found\"}";
+            }
+
+            URL url = new URL(API_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
-            conn.setConnectTimeout(30000); // 30 seconds
-            conn.setReadTimeout(60000);    // 60 seconds
 
-            // Escape the prompt properly for JSON
-            String escapedPrompt = prompt.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
-            String jsonInputString = String.format("{\"model\": \"phi3:mini\", \"prompt\": \"%s\", \"stream\": false}", escapedPrompt);
+            // Build JSON request using ObjectMapper instead of manual string concatenation
+            ObjectNode requestJson = objectMapper.createObjectNode();
+            requestJson.put("model", "llama3-8b-8192");
+            requestJson.put("temperature", 0.3);
+            
+            ArrayNode messages = objectMapper.createArrayNode();
+            
+            // System message
+            ObjectNode systemMessage = objectMapper.createObjectNode();
+            systemMessage.put("role", "system");
+            systemMessage.put("content", "You are a helpful nutritionist that replies with only JSON.");
+            messages.add(systemMessage);
+            
+            // User message
+            ObjectNode userMessage = objectMapper.createObjectNode();
+            userMessage.put("role", "user");
+            userMessage.put("content", prompt); // ObjectMapper handles proper escaping
+            messages.add(userMessage);
+            
+            requestJson.set("messages", messages);
 
-            System.out.println("=== DEBUG: Sending request to Ollama ===");
-            System.out.println("URL: " + url);
-            System.out.println("Request: " + jsonInputString);
+            // Convert to JSON string
+            String requestBody = objectMapper.writeValueAsString(requestJson);
+            
+            // Debug: Print the request body (remove in production)
+            System.out.println("=== REQUEST BODY ===");
+            System.out.println(requestBody);
+            System.out.println("=== END REQUEST BODY ===");
 
             try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes("utf-8");
-                os.write(input, 0, input.length);
+                os.write(requestBody.getBytes("utf-8"));
             }
 
-            // Check response code
-            int responseCode = conn.getResponseCode();
-            System.out.println("=== DEBUG: Ollama Response Code: " + responseCode + " ===");
-
-            if (responseCode != 200) {
-                return "{\"error\": \"⚠️ Ollama server returned error code: " + responseCode + "\"}";
+            int status = conn.getResponseCode();
+            if (status != 200) {
+                // Get error response body for debugging
+                String errorResponse = "";
+                try (InputStream errorStream = conn.getErrorStream()) {
+                    if (errorStream != null) {
+                        Scanner errorScanner = new Scanner(errorStream, "utf-8");
+                        StringBuilder errorBuilder = new StringBuilder();
+                        while (errorScanner.hasNextLine()) {
+                            errorBuilder.append(errorScanner.nextLine());
+                        }
+                        errorResponse = errorBuilder.toString();
+                        errorScanner.close();
+                    }
+                }
+                
+                System.err.println("API Error Response: " + errorResponse);
+                return "{\"error\": \"⚠️ Groq API returned status code: " + status + ". Details: " + errorResponse + "\"}";
             }
 
             Scanner scanner = new Scanner(conn.getInputStream(), "utf-8");
-            StringBuilder response = new StringBuilder();
+            StringBuilder responseBuilder = new StringBuilder();
             while (scanner.hasNextLine()) {
-                response.append(scanner.nextLine());
+                responseBuilder.append(scanner.nextLine());
             }
             scanner.close();
 
-            // Parse the Ollama response wrapper to extract the actual response content
-            String rawResponse = response.toString();
-            System.out.println("=== DEBUG: Raw Ollama API Response ===\n" + rawResponse + "\n=== End Raw API Response ===");
-            
-            if (rawResponse.trim().isEmpty()) {
-                return "{\"error\": \"⚠️ Empty response from Ollama server\"}";
-            }
-            
-            try {
-                JsonNode ollamaResponse = objectMapper.readTree(rawResponse);
-                if (ollamaResponse.has("response")) {
-                    String actualResponse = ollamaResponse.get("response").asText();
-                    System.out.println("=== DEBUG: Extracted Response Content ===\n" + actualResponse + "\n=== End Response Content ===");
-                    return actualResponse;
-                } else if (ollamaResponse.has("error")) {
-                    return "{\"error\": \"⚠️ Ollama error: " + ollamaResponse.get("error").asText() + "\"}";
-                } else {
-                    return "{\"error\": \"⚠️ No response field in Ollama output\"}";
-                }
-            } catch (Exception parseException) {
-                System.err.println("Failed to parse Ollama wrapper JSON: " + parseException.getMessage());
-                System.err.println("Raw response was: " + rawResponse);
-                return "{\"error\": \"⚠️ Failed to parse Ollama response wrapper: " + parseException.getMessage() + "\"}";
-            }
+            String responseJson = responseBuilder.toString();
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode content = root.at("/choices/0/message/content");
 
-        } catch (java.net.ConnectException e) {
-            System.err.println("Connection refused - is Ollama running on localhost:11434?");
-            return "{\"error\": \"⚠️ Cannot connect to Ollama - make sure it's running on localhost:11434\"}";
+            return content.isMissingNode()
+                    ? "{\"error\": \"⚠️ No valid 'content' in Groq response\"}"
+                    : content.asText().trim();
+
         } catch (Exception e) {
             e.printStackTrace();
-            return "{\"error\": \"⚠️ Failed to connect to Ollama: " + e.getMessage() + "\"}";
+            return "{\"error\": \"⚠️ Exception occurred: " + e.getMessage() + "\"}";
         }
     }
 }
