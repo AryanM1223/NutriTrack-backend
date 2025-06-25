@@ -19,26 +19,37 @@ public class OllamaClient {
     private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private static String getApiKeyFromEnv() {
+        // First try system environment variables (for production/Render)
+        String apiKey = System.getenv("GROQ_API_KEY");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            return apiKey;
+        }
+        
+        // Fallback to .env file (for local development)
         try {
             Path envPath = Paths.get(".env");
-            Map<String, String> envVars = new HashMap<>();
-            Files.lines(envPath).forEach(line -> {
-                if (line.contains("=")) {
-                    String[] parts = line.split("=", 2);
-                    envVars.put(parts[0].trim(), parts[1].trim());
-                }
-            });
-            return envVars.get("GROQ_API_KEY");
+            if (Files.exists(envPath)) {
+                Map<String, String> envVars = new HashMap<>();
+                Files.lines(envPath).forEach(line -> {
+                    if (line.contains("=")) {
+                        String[] parts = line.split("=", 2);
+                        envVars.put(parts[0].trim(), parts[1].trim());
+                    }
+                });
+                return envVars.get("GROQ_API_KEY");
+            }
         } catch (IOException e) {
-            return null;
+            System.err.println("Error reading .env file: " + e.getMessage());
         }
+        
+        return null;
     }
 
     public static String askModel(String prompt) {
         try {
             String apiKey = getApiKeyFromEnv();
             if (apiKey == null || apiKey.isEmpty()) {
-                return "{\"error\": \"❌ GROQ_API_KEY missing or .env file not found\"}";
+                return "{\"error\": \"❌ GROQ_API_KEY missing from environment variables\"}";
             }
 
             URL url = new URL(API_URL);
@@ -48,6 +59,10 @@ public class OllamaClient {
             conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
+            
+            // Add timeout settings to prevent hanging
+            conn.setConnectTimeout(10000); // 10 seconds
+            conn.setReadTimeout(30000);    // 30 seconds
 
             // Build JSON request using ObjectMapper instead of manual string concatenation
             ObjectNode requestJson = objectMapper.createObjectNode();
