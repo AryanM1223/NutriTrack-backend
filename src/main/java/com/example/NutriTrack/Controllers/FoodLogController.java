@@ -166,5 +166,18 @@ public ResponseEntity<?> getDailySummary(@RequestParam int userId, @RequestParam
 
     return ResponseEntity.ok(response);
 }
+    @RestController
+public class HealthController {
+    
+    @GetMapping("/health")
+    public ResponseEntity<String> testGroq() {
+        try {
+            String response = OllamaClient.askModel("What is 2+2? Respond only with a number.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Groq API test failed: " + e.getMessage());
+        }
+    }
+}
 
 }
