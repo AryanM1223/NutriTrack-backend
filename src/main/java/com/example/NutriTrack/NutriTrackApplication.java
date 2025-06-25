@@ -17,8 +17,7 @@ public class NutriTrackApplication {
     public static void main(String[] args) {
         SpringApplication.run(NutriTrackApplication.class, args);
     }
-
-   @Bean
+    @Bean
 public CommandLineRunner testOllama() {
     return args -> {
         // Run in a separate thread so it doesn't block startup
@@ -33,5 +32,5 @@ public CommandLineRunner testOllama() {
         });
     };
 }
-    }
 
+}
