@@ -32,12 +32,12 @@ public class FoodModel {
     @JoinColumn(name = "user_id")
     private UserModel user;
 
-    // Move @CreationTimestamp to the field, not the getter
+    
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    // Getters and Setters
+   
     public String getQuantityText() {
         return quantityText;
     }
