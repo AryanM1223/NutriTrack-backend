@@ -63,8 +63,8 @@ public class FoodLogController {
                     + "Quantity: \"" + quantityText + "\"\n\n"
                     + "INSTRUCTIONS:\n"
                     + "1. Use a reliable, standard Indian food composition database for your calculations.\n"
-                    + "2. If a generic quantity like '1 serving' or '1 bowl' is given, use these standard conversions: 1 serving = 200g, 1 bowl = 150g, 1 cup = 240ml. Otherwise, use the specified quantity.\n"
-                    + "3. Calculate the total calories, protein (in grams), and fiber (in grams).\n"
+                    + "2. If a generic quantity like '1 serving' or '1 bowl' is given, use these standard conversions: 1 serving = 200g, 1 bowl = 150g, 1 cup = 240ml. For items like 'roti' or 'paratha', assume a standard medium size (e.g., 30-40g for roti). Otherwise, use the specified quantity.\n"
+                    + "3. Calculate the total calories, protein (in grams), fiber (in grams), carbohydrates (in grams), fat (in grams), and sugar (in grams).\n"
                     + "4. Round all nutritional values to the nearest whole number.\n"
                     + "5. Do NOT provide any explanation, preamble, or text outside of the JSON object.\n"
                     + "6. If you cannot determine the nutritional value for the given food, return a JSON object with all values set to 0.\n\n"
@@ -72,7 +72,10 @@ public class FoodLogController {
                     + "{\n"
                     + "  \"calories\": <calculated_calories>,\n"
                     + "  \"protein\": <calculated_protein_in_grams>,\n"
-                    + "  \"fiber\": <calculated_fiber_in_grams>\n"
+                    + "  \"fiber\": <calculated_fiber_in_grams>,\n"
+                    + "  \"carbs\": <calculated_carbs_in_grams>,\n"
+                    + "  \"fat\": <calculated_fat_in_grams>,\n"
+                    + "  \"sugar\": <calculated_sugar_in_grams>\n"
                     + "}";
 
             String modelResponse = GroqClient.askModel(prompt);
@@ -108,10 +111,16 @@ public class FoodLogController {
             double calories = jsonNode.has("calories") ? jsonNode.get("calories").asDouble(0) : 0;
             double protein = jsonNode.has("protein") ? jsonNode.get("protein").asDouble(0) : 0;
             double fiber = jsonNode.has("fiber") ? jsonNode.get("fiber").asDouble(0) : 0;
+            double carbs = jsonNode.has("carbs") ? jsonNode.get("carbs").asDouble(0) : 0;
+            double fat = jsonNode.has("fat") ? jsonNode.get("fat").asDouble(0) : 0;
+            double sugar = jsonNode.has("sugar") ? jsonNode.get("sugar").asDouble(0) : 0;
 
             foodModel.setCalories(calories);
             foodModel.setTotalProtein(protein);
             foodModel.setTotalFiber(fiber);
+            foodModel.setTotalCarbs(carbs);
+            foodModel.setTotalFat(fat);
+            foodModel.setTotalSugar(sugar);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -166,11 +175,14 @@ public class FoodLogController {
         LocalDate localDate = LocalDate.parse(date);
         List<FoodModel> foodList = foodRepo.findByUserAndDate(userOptional.get(), localDate);
 
-        double totalCalories = 0, totalProtein = 0, totalFiber = 0;
+        double totalCalories = 0, totalProtein = 0, totalFiber = 0, totalCarbs = 0, totalFat = 0, totalSugar = 0;
         for (FoodModel food : foodList) {
             totalCalories += food.getCalories();
             totalProtein += food.getTotalProtein();
             totalFiber += food.getTotalFiber();
+            totalCarbs += food.getTotalCarbs();
+            totalFat += food.getTotalFat();
+            totalSugar += food.getTotalSugar();
         }
 
         Map<String, Object> response = new HashMap<>();
@@ -178,6 +190,9 @@ public class FoodLogController {
         response.put("totalCalories", totalCalories);
         response.put("totalProtein", totalProtein);
         response.put("totalFiber", totalFiber);
+        response.put("totalCarbs", totalCarbs);
+        response.put("totalFat", totalFat);
+        response.put("totalSugar", totalSugar);
         response.put("totalItems", foodList.size());
 
         return ResponseEntity.ok(response);

@@ -19,7 +19,7 @@ public class GroqClient {
     private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private static String getApiKeyFromEnv() {
-        // First try system environment variables (for production/Render)
+        
         String apiKey = System.getenv("GROQ_API_KEY");
         if (apiKey != null && !apiKey.isEmpty()) {
             return apiKey;
@@ -60,35 +60,35 @@ public class GroqClient {
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
             
-            // Add timeout settings to prevent hanging
-            conn.setConnectTimeout(10000); // 10 seconds
-            conn.setReadTimeout(30000);    // 30 seconds
+            
+            conn.setConnectTimeout(10000); 
+            conn.setReadTimeout(30000);    
 
-            // Build JSON request using ObjectMapper instead of manual string concatenation
+           
             ObjectNode requestJson = objectMapper.createObjectNode();
             requestJson.put("model", "llama3-8b-8192");
             requestJson.put("temperature", 0.3);
             
             ArrayNode messages = objectMapper.createArrayNode();
             
-            // System message
+          
             ObjectNode systemMessage = objectMapper.createObjectNode();
             systemMessage.put("role", "system");
             systemMessage.put("content", "You are a helpful nutritionist that replies with only JSON.");
             messages.add(systemMessage);
             
-            // User message
+           
             ObjectNode userMessage = objectMapper.createObjectNode();
             userMessage.put("role", "user");
-            userMessage.put("content", prompt); // ObjectMapper handles proper escaping
+            userMessage.put("content", prompt); 
             messages.add(userMessage);
             
             requestJson.set("messages", messages);
 
-            // Convert to JSON string
+        
             String requestBody = objectMapper.writeValueAsString(requestJson);
             
-            // Debug: Print the request body (remove in production)
+            
             System.out.println("=== REQUEST BODY ===");
             System.out.println(requestBody);
             System.out.println("=== END REQUEST BODY ===");
@@ -99,7 +99,7 @@ public class GroqClient {
 
             int status = conn.getResponseCode();
             if (status != 200) {
-                // Get error response body for debugging
+                
                 String errorResponse = "";
                 try (InputStream errorStream = conn.getErrorStream()) {
                     if (errorStream != null) {

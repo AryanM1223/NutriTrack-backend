@@ -37,7 +37,40 @@ public class FoodModel {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Column
+    private double totalCarbs;
+
+    @Column
+    private double totalFat;
+
+    @Column
+    private double totalSugar;
+
    
+    public double getTotalCarbs() {
+        return totalCarbs;
+    }
+
+    public void setTotalCarbs(double totalCarbs) {
+        this.totalCarbs = totalCarbs;
+    }
+
+    public double getTotalFat() {
+        return totalFat;
+    }
+
+    public void setTotalFat(double totalFat) {
+        this.totalFat = totalFat;
+    }
+
+    public double getTotalSugar() {
+        return totalSugar;
+    }
+
+    public void setTotalSugar(double totalSugar) {
+        this.totalSugar = totalSugar;
+    }
+
     public String getQuantityText() {
         return quantityText;
     }

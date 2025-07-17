@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class FoodCacheService {
 
-    private static final String FOOD_CACHE_PREFIX = "food_nutrition:";
+    private static final String FOOD_CACHE_PREFIX = "food_nutrition:v2:"; // Bump version to invalidate old cache
     private static final long CACHE_DURATION_DAYS = 30; // Cache entries for 30 days
 
     @Autowired

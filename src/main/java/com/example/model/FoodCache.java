@@ -22,6 +22,15 @@ public class FoodCache {
     @Column
     private double totalFiber;
 
+    @Column
+    private double totalCarbs;
+
+    @Column
+    private double totalFat;
+
+    @Column
+    private double totalSugar;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -72,5 +81,29 @@ public class FoodCache {
 
     public void setTotalFiber(double totalFiber) {
         this.totalFiber = totalFiber;
+    }
+
+    public double getTotalCarbs() {
+        return totalCarbs;
+    }
+
+    public void setTotalCarbs(double totalCarbs) {
+        this.totalCarbs = totalCarbs;
+    }
+
+    public double getTotalFat() {
+        return totalFat;
+    }
+
+    public void setTotalFat(double totalFat) {
+        this.totalFat = totalFat;
+    }
+
+    public double getTotalSugar() {
+        return totalSugar;
+    }
+
+    public void setTotalSugar(double totalSugar) {
+        this.totalSugar = totalSugar;
     }
 }
