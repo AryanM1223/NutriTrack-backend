@@ -4,7 +4,7 @@ package com.example.model;
 import java.sql.Date;
 
 import org.hibernate.annotations.CreationTimestamp;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 public class UserModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonProperty("id") 
     private int id;
     private String name;
     private int age;
@@ -19,6 +20,7 @@ public class UserModel {
     private double weight;
     @CreationTimestamp
     @Column(updatable = false)
+    @JsonProperty("createdAt")
     private Date createdAt;
     public Date getCreatedAt() {
         return createdAt;

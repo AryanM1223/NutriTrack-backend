@@ -42,14 +42,13 @@ public class FoodLogController {
     public ResponseEntity<?> addFood(@RequestBody FoodModel foodModel, @RequestParam int userId) {
         Optional<UserModel> existingUserOptional = userRepo.findById(userId);
         if (!existingUserOptional.isPresent()) {
-            return ResponseEntity.badRequest().body("❌ User not found");
+            return ResponseEntity.badRequest().body(" User not found");
         }
 
         String foodName = foodModel.getFoodItem();
         String quantityText = foodModel.getQuantityText();
         String nutritionJson;
 
-        // 1. Check cache first
         String cachedData = foodCacheService.getFoodData(foodName, quantityText);
 
         if (cachedData != null) {
@@ -57,26 +56,25 @@ public class FoodLogController {
             nutritionJson = cachedData;
         } else {
             System.out.println("=== DEBUG: Cache MISS for '" + foodName + " (" + quantityText + ")'. Querying LLM. ===");
-            // 2. Cache miss: Query the LLM with an improved prompt
             String prompt = "You are a precise nutritionist specializing in Indian cuisine. Your task is to calculate the nutritional values for the given food item and quantity.\n\n"
-                    + "Food Item: \"" + foodName + "\"\n"
-                    + "Quantity: \"" + quantityText + "\"\n\n"
-                    + "INSTRUCTIONS:\n"
-                    + "1. Use a reliable, standard Indian food composition database for your calculations.\n"
-                    + "2. If a generic quantity like '1 serving' or '1 bowl' is given, use these standard conversions: 1 serving = 200g, 1 bowl = 150g, 1 cup = 240ml. For items like 'roti' or 'paratha', assume a standard medium size (e.g., 30-40g for roti). Otherwise, use the specified quantity.\n"
-                    + "3. Calculate the total calories, protein (in grams), fiber (in grams), carbohydrates (in grams), fat (in grams), and sugar (in grams).\n"
-                    + "4. Round all nutritional values to the nearest whole number.\n"
-                    + "5. Do NOT provide any explanation, preamble, or text outside of the JSON object.\n"
-                    + "6. If you cannot determine the nutritional value for the given food, return a JSON object with all values set to 0.\n\n"
-                    + "Respond ONLY with a JSON object in the following format (do not add ```json markdown):\n"
-                    + "{\n"
-                    + "  \"calories\": <calculated_calories>,\n"
-                    + "  \"protein\": <calculated_protein_in_grams>,\n"
-                    + "  \"fiber\": <calculated_fiber_in_grams>,\n"
-                    + "  \"carbs\": <calculated_carbs_in_grams>,\n"
-                    + "  \"fat\": <calculated_fat_in_grams>,\n"
-                    + "  \"sugar\": <calculated_sugar_in_grams>\n"
-                    + "}";
+        + "Food Item: \"" + foodName + "\"\n"
+        + "Quantity: \"" + quantityText + "\"\n\n"
+        + "INSTRUCTIONS:\n"
+        + "1. Use a reliable, standard Indian food composition database for your calculations, providing comprehensive macronutrient details.\n" // Added 'comprehensive macronutrient details'
+        + "2. If a generic quantity like '1 serving' or '1 bowl' is given, use these standard conversions: 1 serving = 200g, 1 bowl = 150g, 1 cup = 240ml. For items like 'roti' or 'paratha', assume a standard medium size (e.g., 30-40g for roti). Otherwise, use the specified quantity.\n"
+        + "3. Calculate the total calories, protein (in grams), fiber (in grams), carbohydrates (in grams), fat (in grams), and sugar (in grams).\n"
+        + "4. **Round all nutritional values to one decimal place. If a value is less than 0.1g but not truly zero, represent it as 0.1.**\n" // <--- MODIFIED THIS LINE
+        + "5. Do NOT provide any explanation, preamble, or text outside of the JSON object.\n"
+        + "6. If you cannot determine the nutritional value for the given food, return a JSON object with all values set to 0. (But prioritize finding non-zero values for all macros where applicable)\n\n" // Added nudge
+        + "Respond ONLY with a JSON object in the following format (do not add ```json markdown):\n"
+        + "{\n"
+        + "  \"calories\": <calculated_calories>,\n"
+        + "  \"protein\": <calculated_protein_in_grams>,\n"
+        + "  \"fiber\": <calculated_fiber_in_grams>,\n"
+        + "  \"carbs\": <calculated_carbs_in_grams>,\n"
+        + "  \"fat\": <calculated_fat_in_grams>,\n"
+        + "  \"sugar\": <calculated_sugar_in_grams>\n"
+        + "}";
 
             String modelResponse = GroqClient.askModel(prompt);
 
@@ -92,7 +90,6 @@ public class FoodLogController {
 
             try {
                 nutritionJson = extractJsonFromResponse(modelResponse);
-                // 3. Store the successful response in the cache
                 foodCacheService.setFoodData(foodName, quantityText, nutritionJson);
                 System.out.println("=== DEBUG: Stored in cache: " + nutritionJson + " ===");
             } catch (Exception e) {
@@ -103,7 +100,6 @@ public class FoodLogController {
             }
         }
 
-        // 4. Parse the JSON (from cache or LLM) and save the food log
         try {
             System.out.println("=== DEBUG: Parsing JSON ===\n" + nutritionJson + "\n=== End Parsing JSON ===");
             JsonNode jsonNode = objectMapper.readTree(nutritionJson);
